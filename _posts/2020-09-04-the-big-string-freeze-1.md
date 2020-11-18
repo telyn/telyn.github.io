@@ -5,19 +5,20 @@ publish: true
 
 At my place of work our primary project is a medium-large Ruby on Rails project,
 with about 1700 ruby files totalling about 90k lines of code. It’s a bit of a
-legacy project, having been originally written in Ruby 1.8 (at least, I *think* it was written for Ruby 1.8 - the
-git history only goes back to the date of the migration from subversion) for Rails 2.
+legacy project, having been originally written in Ruby 1.8 [^rubyversion] for
+Rails 2.
 
 It's now much more modern, of course, but one thing that hasn’t ever been done
 is a big sweep of the codebase to switch to immutable strings.
 
-That on its own is pretty easy to accomplish! I just ran `rubocop
---auto-correct --only 'Style/FrozenStringLiteralComment'`. Under newer
-rubocops you'd need to use `--auto-correct-all` because
-`Style/FrozenStringLiteralComment` is “unsafe”). And then `rubocop
---auto-correct --only 'Layout/EmptyLineAfterMagicComment'` to fix the missing
-empty
-lines.
+That on its own is pretty easy to accomplish! I ran the following command to add
+the `# frozen_string_literal: true` at the top of each file, with an empty line
+underneath it.
+
+```bash
+rubocop -A --only 'Style/FrozenStringLiteralComment,Layout/EmptyLineAfterMagicComment'
+```
+
 
 Job done! `git commit -a` time, right? Well, I’ll just run the tests first.
 
@@ -41,18 +42,16 @@ pin it down. But how can we determine which change caused the tests to start
 failing?
 
 Well, if we make one commit per file, the answer is easy - `git bisect`. And
-we can make one commit per file pretty easily with a little shell
-magic:
+we can make one commit per file pretty easily with a little shell magic:[^pragprog]
 
 ```bash
 #!/bin/bash
 
-rubocop -a --only 'Layout/EmptyLineAfterMagicComment'
+rubocop -A --only 'Layout/EmptyLineAfterMagicComment'
 git add .
 git commit -m "Ensure empty lines exist after all magic comments"
 
-rubocop -a --only 'Style/FrozenStringLiteralComment'
-rubocop -a --only 'Layout/EmptyLineAfterMagicComment'
+rubocop -A --only 'Style/FrozenStringLiteralComment,Layout/EmptyLineAfterMagicComment'
 
 # Make a list of each file that was modified
 # I put it in log/stringfreeze.log because I
@@ -68,6 +67,16 @@ cat log/stringfreeze.log | while read file; do
 end
 ```
 
-Now I've set up my 1700 commits and checked the tests fail, I can run `git bisect` and pinpoint what's causing test failures.
+Now I've set up my 1700 commits and checked the tests fail, I can run
+`git bisect` and pinpoint what's causing test failures.
 
-In the second and final part of this post I'll go into detail on the `git bisect` part of the process and get all the tests passing again.
+In the second and final part of this post I'll go into detail on the
+`git bisect` part of the process and get all the tests passing again.
+
+[^rubyversion]: At least, I *think* it was written for Ruby 1.8 - the git
+                history only goes back to the date of the migration from
+                subversion.
+
+[^pragprog]: The night before I edited this post I was reading The Pragmatic
+             Programmer. I can check **Tip 26 - Use the Power of Command Shells**
+             off my list 😜
